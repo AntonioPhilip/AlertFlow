@@ -1,0 +1,460 @@
+{
+  "name": "uptime kuma alert",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "REPLACE_WITH_WEBHOOK_PATH",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2320,
+        192
+      ],
+      "id": "af61957f-a7bc-48b6-9a75-ed6a9a9e3469",
+      "name": "Webhook",
+      "webhookId": "REPLACE_WITH_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.body.monitor.url}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1040,
+        96
+      ],
+      "id": "32b53fbc-cd1c-4af1-9631-38dbe438f3c0",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "id": "eb6ead1d-5512-4686-941a-e72ec72a98fe",
+      "name": "GeminiModel1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "position": [
+        -800,
+        336
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REPLACE_WITH_GEMINI_CREDENTIAL_ID",
+          "name": "Demo Gemini Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=你是 SRE 值班助手。你將看到監控名稱、URL，以及 HTTP 請求結果（狀態碼、錯誤、回應標頭、內容片段）。\n\n你的任務：僅在「需要人工處理的生產故障」時回覆一段繁體中文說明（≤180字），\n直接說清楚：哪個站點、出了什麼問題、錯誤碼、可能原因／下一步建議（簡短即可）。\n如果不是需要人工處理的故障（例如：2xx/3xx；可預期的 4xx 如 401/403/404；短暫限流；已恢復），請輸出字串SILENT（不要有任何其他文字和符號以及空格）。\n若沒有狀態碼但存在連線錯誤，請說明「錯誤碼：無（連線失敗／逾時）」。\n\n【監控】\n名稱：{{ $node[\"Webhook\"].json.monitor.name }}\nURL：{{ $node[\"Webhook\"].json.monitor.url }}\n\n【HTTP】\n狀態碼：{{ $json.statusCode }}\n狀態語：{{ $json.statusMessage }}\n錯誤：{{ $json.error }}\n回應標頭（完整 JSON）：{{ JSON.stringify($json.headers || {}, null, 2) }}\n內容片段（若為字串則原樣輸出，否則轉 JSON）：{{\n  (typeof $json.data === \"string\"\n    ? $json.data\n    : JSON.stringify($json.data ?? $json.body ?? {}, null, 2))\n}}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -800,
+        96
+      ],
+      "id": "a239c060-d652-4d7d-a12d-0dbdf30e6c07",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 讀 LLM 原樣輸出\nconst raw = String($json.text ?? $json.output ?? $json.response ?? \"\").trim();\n\n// 嚴格協議：只有精確 \"SILENT\"（大小寫不敏感）才不通知\nconst isSilent = /^SILENT$/i.test(raw);\n\nreturn {\n  shouldNotify: !isSilent,\n  message: isSilent ? \"\" : raw,\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        96
+      ],
+      "id": "5df05e6e-c63a-43c0-9cd9-9ea7f3f6ec48",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1744,
+        128
+      ],
+      "id": "fd835730-4de6-4fb6-8475-a14c79b312de",
+      "name": "Wait",
+      "webhookId": "REPLACE_WITH_WAIT_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code1 — 收到 UP，僅記錄「最後一次 UP 的時間戳」\nconst store = $getWorkflowStaticData('global');\nif (!store.alerts) store.alerts = {};\n\nconst body = $json.body ?? {};\nconst monitorId =\n  body.monitorID ??\n  $json.monitor?.id ??\n  $json.monitorID ??\n  'unknown';\n\nconst now = Date.now();\nconst rec = store.alerts[monitorId] ?? (store.alerts[monitorId] = {\n  lastUpAt: 0,\n  lastDownAt: 0,\n  notified: {}\n});\nrec.lastUpAt = now;\n\nreturn [{ json: { ...$json, monitorId, lastUpAt: now } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1920,
+        256
+      ],
+      "id": "a6c0463a-e343-4215-a57a-733d9540f0b1",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code2 — 記錄一次「DOWN 事件」的時間戳，並產生事件ID\nconst store = $getWorkflowStaticData('global');\nif (!store.alerts) store.alerts = {};\n\nconst body = $json.body ?? {};\nconst monitorId =\n  body.monitorID ??\n  $json.monitor?.id ??\n  $json.monitorID ??\n  'unknown';\n\nconst downAt = Date.now();                    // 這次 DOWN 的時間戳（毫秒）\nconst incidentId = `${monitorId}:${downAt}`;  // 本次事件ID（用於去重）\n\n// 初始化/更新該監控的全域狀態（只存最後一次 UP/ DOWN 的時間戳）\nconst rec = store.alerts[monitorId] ?? (store.alerts[monitorId] = {\n  lastUpAt: 0,\n  lastDownAt: 0,\n  notified: {}     // 用 incidentId 做去重，避免重覆通知\n});\nrec.lastDownAt = downAt;\n\nreturn [{\n  json: {\n    ...$json,              // 保留原始 webhook 資料\n    monitorId,\n    downAt,\n    incidentId,\n    recovered: false,      // 預設未恢復（僅佔位，真正判定在 Code3）\n    alreadyNotified: false // 預設未通知（真正判定在 Code3）\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1920,
+        128
+      ],
+      "id": "af95469c-beba-447e-82c9-f37b7e90517c",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code3 — Wait 之後才判斷是否恢復：\n// 規則：若「最後一次 UP 的時間戳 >= 本次 DOWN 的時間戳」→ recovered = true\n//      否則 recovered = false\nconst store = $getWorkflowStaticData('global');\nif (!store.alerts) store.alerts = {};\n\nconst monitorId =\n  $json.monitorId ??\n  $json.body?.monitorID ??\n  $json.monitor?.id ??\n  'unknown';\n\nconst downAt = Number($json.downAt ?? 0);\nconst incidentId = String($json.incidentId ?? `${monitorId}:${downAt}`);\n\nconst rec = store.alerts[monitorId] ?? { lastUpAt: 0, lastDownAt: 0, notified: {} };\nconst lastUpAt = Number(rec.lastUpAt || 0);\n\n// 是否在這次 DOWN 之後出現過 UP\nconst recovered = lastUpAt >= downAt;\n\n// 事件級別的去重：同一 incidentId 只通知一次\nconst alreadyNotified = !!(rec.notified && rec.notified[incidentId]);\n\n// 若未恢復且尚未通知，做去重標記（發送後 If2 會放行到通知節點）\nif (!recovered && !alreadyNotified) {\n  rec.notified = rec.notified || {};\n  rec.notified[incidentId] = true;\n}\n\n// 若已恢復，可選擇清理過期的去重標記（保守：保留，以免 race）\nreturn [{\n  json: {\n    ...$json,\n    monitorId,\n    downAt,\n    incidentId,\n    recovered,        // 給 If2 用\n    alreadyNotified   // 給 If2 用（事件去重）\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1568,
+        128
+      ],
+      "id": "c1f4877b-bee7-4b37-96e0-3fd153a6ba5b",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_DEMO_OPERATOR_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        192
+      ],
+      "id": "d38c7e2d-4a3b-485e-a956-edbb8b800414",
+      "name": "Send Demo Operator",
+      "webhookId": "REPLACE_WITH_TELEGRAM_WEBHOOK_ID",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIAL_ID",
+          "name": "Demo Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_DEMO_TEAM_CHAT_ID",
+        "text": "=@demo_oncall {{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "87b2f32b-f4dd-4322-a2d5-23b5389283d2",
+      "name": "Send Demo Team",
+      "webhookId": "REPLACE_WITH_TELEGRAM_WEBHOOK_ID",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIAL_ID",
+          "name": "Demo Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c3d6a352-e9fd-4f08-aae0-94124f557444",
+              "leftValue": "={{ $json[\"body\"][\"heartbeat\"][\"status\"].toString() }}",
+              "rightValue": "=0",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2160,
+        192
+      ],
+      "id": "8ecfb5dc-e50f-43f7-8085-2c72a3f818db",
+      "name": "If down"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "46a209ab-9f05-4ed4-893b-0d4a2d0ffe8a",
+              "leftValue": "={{$json.recovered.toString()}}",
+              "rightValue": "=false",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "d30ff03e-c33f-4cc2-9d7c-d263574cc832",
+              "leftValue": "={{$json.alreadyNotified.toString()}}",
+              "rightValue": "=false",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1376,
+        128
+      ],
+      "id": "dd24ac24-15bd-4e83-a3e2-ca8f81d21bf1",
+      "name": "If no up"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b4bbeb53-347f-438e-b1ad-3f20e599caec",
+              "leftValue": "={{$json.shouldNotify.toString()}}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -272,
+        96
+      ],
+      "id": "1673fdfc-6348-48cb-b0cb-8b54c8e9391d",
+      "name": "If need alert"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If down",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GeminiModel1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "If need alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "If no up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If down": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If no up": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If need alert": {
+      "main": [
+        [
+          {
+            "node": "Send Demo Operator",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Demo Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "REPLACE_WITH_VERSION_ID",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "REPLACE_WITH_INSTANCE_ID"
+  },
+  "id": "REPLACE_WITH_WORKFLOW_ID",
+  "tags": []
+}
