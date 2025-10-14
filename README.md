@@ -1,6 +1,7 @@
 # n8n LLM Alert Triage for Uptime Kuma
 Tags: n8n-workflow | ai-ops | automation | alert-management | telegram-bot | kubernetes
 An n8n workflow that keeps noisy infrastructure alerts away from human operators by letting a Large Language Model perform the last-mile triage. The flow is designed for Uptime Kuma heartbeats today, but its building blocks make it easy to plug in other alert sources.
+<img width="1140" height="308" alt="image" src="https://github.com/user-attachments/assets/4f19639a-78a0-4d66-982c-fa27ef2fc79c" />
 
 ## Key Features
 - Receives Uptime Kuma heartbeat webhooks and tracks per-monitor incident state in n8n static data for clean up/down transitions.
